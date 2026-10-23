@@ -10,12 +10,14 @@ Exit codes for check: 0 clean, 1 drift found, 2 a device could not be collected.
 from __future__ import annotations
 
 import argparse
+import time
 from collections.abc import Sequence
 from pathlib import Path
 
 from automation.backup import CycleResult, run_cycle, run_scheduled
 from automation.fetch import DockerExecFetcher
 from automation.inventory import Device, load_inventory
+from automation.state import update_state
 from automation.store import BackupStore, BaselineStore
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -58,6 +60,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--backups", type=Path, default=REPO_ROOT / "backups")
     parser.add_argument("--golden", type=Path, default=REPO_ROOT / "golden")
+    parser.add_argument(
+        "--state", type=Path, default=REPO_ROOT / "reports" / "state.json",
+        help="state file read by the Prometheus exporter",
+    )
+
 
     sub = parser.add_subparsers(dest="command", required=True)
     p_check = sub.add_parser("check", help="fetch, store, and compare with baseline")
@@ -90,6 +97,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     selected = _select(devices, args.device)
     if args.command == "check":
         results = run_cycle(selected, fetcher, store, baseline)
+        update_state(args.state, results, time.time())
         _print_results(results)
         return exit_code(results)
 
@@ -99,6 +107,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     def remember(results: list[CycleResult]) -> None:
         nonlocal last
         last = results
+        update_state(args.state, results, time.time())
         _print_results(results)
         print("---")
 

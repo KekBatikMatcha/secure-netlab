@@ -1,0 +1,76 @@
+# Alert rules for the lab. Severity labels: critical = act now, warning = look at it today.
+groups:
+  - name: device-availability
+    rules:
+      - alert: DeviceDown
+        expr: lab_device_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.device }} is not accepting TCP connections"
+          description: "The last probe to {{ $labels.device }} failed for at least 1 minute."
+
+      - alert: ProbeFailuresBurst
+        # Several failed probes in 10 minutes, even if the device recovered in between.
+        expr: increase(lab_probe_failures_total[10m]) > 3
+        labels:
+          severity: warning
+        annotations:
+          summary: "Repeated probe failures for {{ $labels.device }}"
+          description: "{{ $value | printf \"%.0f\" }} failed probes in the last 10 minutes."
+
+      - alert: HighProbeLatencyP50
+        # Median connect time over 5 minutes. p95 is not used: in this lab about 8% of connects take
+        # roughly 1 s (consistent with TCP SYN retransmission), so p95 would alert all the time.
+        expr: |
+          histogram_quantile(0.5,
+            sum by (le, device) (rate(lab_probe_duration_seconds_bucket[5m]))) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High TCP connect latency to {{ $labels.device }}"
+          description: "Median connect time is {{ $value | printf \"%.3f\" }}s (threshold 0.05s)."
+
+  - name: config-drift
+    rules:
+      - alert: ConfigDriftHigh
+        expr: sum by (device) (lab_drift_findings{severity="high"}) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "High-severity config drift on {{ $labels.device }}"
+          description: "A management port or policy changed. Review with `make check`."
+
+      - alert: ConfigDriftLow
+        expr: sum by (device) (lab_drift_findings{severity=~"medium|low"}) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Config drift on {{ $labels.device }}"
+          description: "Non-management drift present. Review the latest check report."
+
+  - name: backup-health
+    rules:
+      - alert: BackupStale
+        expr: time() - lab_backup_last_success_timestamp_seconds > 900
+        labels:
+          severity: warning
+        annotations:
+          summary: "No successful backup of {{ $labels.device }} for 15 minutes"
+
+      - alert: BackupErrors
+        expr: increase(lab_backup_errors_total[30m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backup failures for {{ $labels.device }}"
+
+      - alert: BackupStateStale
+        # The scheduler writes the state file every cycle. If it is old, the scheduler is not running.
+        expr: lab_state_age_seconds > 900
+        labels:
+          severity: warning
+        annotations:
+          summary: "Backup scheduler has not written state for 15 minutes"

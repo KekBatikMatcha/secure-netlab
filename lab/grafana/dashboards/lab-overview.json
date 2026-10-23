@@ -1,0 +1,163 @@
+{
+  "uid": "lab-overview",
+  "title": "Secure Netlab - Overview",
+  "tags": ["secure-netlab", "monitoring"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 2,
+  "editable": false,
+  "refresh": "15s",
+  "time": {"from": "now-1h", "to": "now"},
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Device status",
+      "gridPos": {"h": 7, "w": 8, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "lab_device_up", "legendFormat": "{{device}}",
+         "datasource": {"type": "prometheus", "uid": "prometheus"}}
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {"type": "value", "options": {
+              "0": {"text": "DOWN", "color": "red", "index": 1},
+              "1": {"text": "UP", "color": "green", "index": 0}}}
+          ],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}]}
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 2,
+      "type": "table",
+      "title": "Firing alerts",
+      "gridPos": {"h": 7, "w": 16, "x": 8, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "ALERTS{alertstate=\"firing\"}", "format": "table",
+         "instant": true, "datasource": {"type": "prometheus", "uid": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "transformations": [
+        {"id": "organize", "options": {
+          "excludeByName": {"__name__": true, "Time": true, "Value": true,
+                            "instance": true, "job": true},
+          "indexByName": {"alertname": 0, "severity": 1, "device": 2, "alertstate": 3}
+        }}
+      ],
+      "options": {"showHeader": true}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "TCP connect latency (p50 and p95)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 7},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A",
+         "expr": "histogram_quantile(0.5, sum by (le, device) (rate(lab_probe_duration_seconds_bucket[5m])))",
+         "legendFormat": "{{device}} p50", "datasource": {"type": "prometheus", "uid": "prometheus"}},
+        {"refId": "B",
+         "expr": "histogram_quantile(0.95, sum by (le, device) (rate(lab_probe_duration_seconds_bucket[5m])))",
+         "legendFormat": "{{device}} p95", "datasource": {"type": "prometheus", "uid": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}}
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Probe failures (last 5 min)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 7},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "sum by (device) (increase(lab_probe_failures_total[5m]))",
+         "legendFormat": "{{device}}", "datasource": {"type": "prometheus", "uid": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}}
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Drift findings by severity",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 15},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "sum by (device, severity) (lab_drift_findings)",
+         "legendFormat": "{{device}} {{severity}}",
+         "datasource": {"type": "prometheus", "uid": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}}
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Drift events (per hour)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 15},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "sum by (device) (increase(lab_drift_events_total[1h]))",
+         "legendFormat": "{{device}}", "datasource": {"type": "prometheus", "uid": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}}
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Time since last good backup",
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 23},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "time() - lab_backup_last_success_timestamp_seconds",
+         "legendFormat": "{{device}}", "datasource": {"type": "prometheus", "uid": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "colorMode": "value", "graphMode": "none", "textMode": "value_and_name"
+      }
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Backup errors (per hour)",
+      "gridPos": {"h": 6, "w": 8, "x": 8, "y": 23},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "sum by (device) (increase(lab_backup_errors_total[1h]))",
+         "legendFormat": "{{device}}", "datasource": {"type": "prometheus", "uid": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}}
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Backup state age",
+      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 23},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "lab_state_age_seconds", "legendFormat": "state file",
+         "datasource": {"type": "prometheus", "uid": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "options": {
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "colorMode": "value", "graphMode": "none", "textMode": "value_and_name"
+      }
+    }
+  ]
+}

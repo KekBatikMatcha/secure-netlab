@@ -93,6 +93,59 @@ services:
       industrial:
         ipv4_address: 10.10.40.10
 
+  # Uptime/latency monitor (management segment). Probes allowed flows through the router and
+  # exports Prometheus metrics on :9101. Reads the backup state written by `python -m automation`.
+  monitor:
+    build:
+      context: ..
+      dockerfile: monitor/Dockerfile
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    command: sh -c "ip route replace default via 10.10.30.1 && exec python -m monitor.app --targets /app/monitor/targets.yaml --state /state/state.json"
+    volumes:
+      - ../reports:/state:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9101/metrics', timeout=2)"]
+      interval: 5s
+      retries: 20
+    networks:
+      management:
+        ipv4_address: 10.10.30.20
+
+  # Prometheus scrapes the monitor and evaluates alert rules (lab/prometheus). UI on localhost only.
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    volumes:
+      - ../lab/prometheus:/etc/prometheus:ro
+    ports:
+      - "127.0.0.1:9090:9090"
+    networks:
+      management:
+        ipv4_address: 10.10.30.30
+
+  # Grafana with provisioned datasource and dashboard (lab/grafana). UI on localhost only.
+  # Anonymous Viewer access is enabled so the dashboard can be viewed without logging in.
+  # This is acceptable only because the port is bound to 127.0.0.1. Editing requires the admin login.
+  grafana:
+    image: grafana/grafana:12.1.1
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-FAKE-lab-grafana-pass}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ../lab/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../lab/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3000:3000"
+    networks:
+      management:
+        ipv4_address: 10.10.30.40
+
 networks:
   # NOTE: not `internal: true`. Docker's internal-network isolation drops any IP packet leaving an
   # internal bridge toward another subnet, which blocks traffic routed through the segment router

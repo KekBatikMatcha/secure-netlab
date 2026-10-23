@@ -26,6 +26,7 @@ ENDPOINTS = {
     "app-server": ("server", "10.10.20.10"),
     "eng-ws": ("management", "10.10.30.10"),
     "plc": ("industrial", "10.10.40.10"),
+    "monitor": ("management", "10.10.30.20"),
 }
 
 
@@ -43,9 +44,10 @@ def test_four_segments_with_expected_subnets() -> None:
 
 
 def test_no_ports_published_to_host() -> None:
-    # Lab is localhost-only: nothing may be exposed on the host.
+    # Lab is localhost-only: any published port must be bound to 127.0.0.1.
     for name, svc in _load()["services"].items():
-        assert "ports" not in svc, f"{name} publishes ports to the host"
+        for mapping in svc.get("ports", []):
+            assert str(mapping).startswith("127.0.0.1:"), f"{name} exposes {mapping}"
 
 
 def test_every_endpoint_on_exactly_one_segment_with_static_ip() -> None:

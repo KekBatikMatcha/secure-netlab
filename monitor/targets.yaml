@@ -1,0 +1,13 @@
+# TCP targets probed by the monitor. It runs on the management segment, so only flows allowed
+# by the router (management -> server:8080, management -> industrial:502) are reachable.
+# The user segment is deliberately not monitored from here (no management -> user rule).
+targets:
+  - name: eng-ws
+    host: 10.10.30.10
+    port: 8080
+  - name: app-server
+    host: 10.10.20.10
+    port: 8080
+  - name: plc
+    host: 10.10.40.10
+    port: 502
