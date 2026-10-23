@@ -8,7 +8,7 @@ A fully containerised, reproducible lab on localhost. It covers config automatio
 
 - [x] Phase 0: bootstrap (tooling, CI, hygiene tests)
 - [x] Phase 1: segmented Docker Compose lab (see [docs/topology.md](docs/topology.md))
-- [ ] Phase 2: config backup and drift detection
+- [x] Phase 2: config backup and drift detection (see [docs/config-drift.md](docs/config-drift.md))
 - [ ] Phase 3: monitoring and alerting
 - [ ] Phase 4: intrusion detection (Suricata)
 - [ ] Phase 5: threat model and polish
@@ -22,7 +22,12 @@ make up           # build and start the lab on internal networks (no host ports)
 make integration  # segmentation + Modbus checks against the running lab
 make down         # stop the lab and remove its volumes
 make test         # lint + unit tests + integration tests
+make check        # back up all devices, store changes, report drift (exit 1 on drift)
 ```
+
+Config backup and drift: `python -m automation baseline router` accepts the current config as the
+baseline, `python -m automation run --every 300` repeats the check. See
+[docs/config-drift.md](docs/config-drift.md).
 
 Windows without `make`: run the same commands directly from PowerShell:
 

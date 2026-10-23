@@ -1,0 +1,14 @@
+# Devices collected by the backup module. Each section is a command run inside the container.
+# Keep commands read-only: backups must never change device state.
+devices:
+  - name: router
+    service: router
+    sections:
+      # filter table only: the nat table holds Docker's DNS redirect, which changes on restart
+      firewall: iptables-save -t filter
+      listeners: netstat -tln
+
+  - name: plc
+    service: plc
+    sections:
+      listeners: netstat -tln

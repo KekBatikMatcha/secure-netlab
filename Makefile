@@ -9,7 +9,11 @@
 COMPOSE := docker compose -f compose/docker-compose.yml
 PY ?= python
 
-.PHONY: up down lint unit integration test
+.PHONY: up down lint unit integration test check
+
+# Fetch every device, store changed config versions, and report drift (exit 1 on drift).
+check:
+	$(PY) -m automation check
 
 up:
 	$(COMPOSE) up -d --build --wait
