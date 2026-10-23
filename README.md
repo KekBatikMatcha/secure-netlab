@@ -216,8 +216,9 @@ These are known gaps, not oversights:
   segment, by design.
 - **Authentication on the monitoring stack.** Prometheus has no authentication. Grafana allows
   anonymous viewing. Both depend on the localhost binding for protection.
-- **Remote CI.** The workflow has been validated locally (YAML parsing, and ruff and unit tests in a
-  `python:3.11` container) but had not run on GitHub when this README was written.
+- **CI on a fresh runner.** The first GitHub Actions run found three runner-specific problems: a script
+  without the execute bit, a bind-mounted directory owned by root, and no diagnostics on a failed start.
+  All three are fixed. The current run passes both jobs (111 unit tests and 26 integration tests).
 
 ## Sample incident response walkthrough
 
