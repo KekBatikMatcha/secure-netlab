@@ -48,6 +48,14 @@ jobs:
       - name: Start the lab
         run: make up
 
+      # Runs only if the lab did not start: shows container states and the router's own output.
+      - name: Diagnose a failed start
+        if: failure()
+        run: |
+          docker compose -f compose/docker-compose.yml ps -a
+          docker compose -f compose/docker-compose.yml logs --no-color --tail 200 router suricata plc
+          docker inspect secure-netlab-router-1 --format '{{json .State}}' || true
+
       # The monitoring and IDS tests read reports/state.json and eve.json, so produce them first.
       - name: Back up devices (writes reports/state.json)
         run: python -m automation check
