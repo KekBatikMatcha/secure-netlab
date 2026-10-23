@@ -44,6 +44,11 @@ jobs:
       - name: Install dev dependencies
         run: python -m pip install --upgrade pip -r requirements-dev.txt
 
+      # Create reports/ as the runner user first. If Docker creates it on a bind mount, it is owned by
+      # root and the backup step cannot write reports/state.json.
+      - name: Prepare reports directory
+        run: mkdir -p reports/suricata
+
       # Builds and starts the whole lab (routers, endpoints, Suricata, monitoring) on the runner.
       - name: Start the lab
         run: make up
