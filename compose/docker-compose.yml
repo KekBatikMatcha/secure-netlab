@@ -1,0 +1,122 @@
+# Secure Network Automation & Monitoring Lab - Phase 1 topology.
+# Everything is on internal networks: no published ports, nothing reachable from the host.
+# See docs/topology.md for the diagram and the allow/deny matrix.
+name: secure-netlab
+
+x-endpoint: &endpoint
+  build:
+    context: ../lab
+    dockerfile: host/Dockerfile
+  restart: unless-stopped
+  # NET_ADMIN lets the container replace its default route to the segment router.
+  cap_add:
+    - NET_ADMIN
+
+services:
+  # Segment router/firewall. Attached to all four segments at .1; forwarding is enabled here.
+  router:
+    build:
+      context: ../lab/router
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    sysctls:
+      net.ipv4.ip_forward: "1"
+    networks:
+      user:
+        ipv4_address: 10.10.10.1
+      server:
+        ipv4_address: 10.10.20.1
+      management:
+        ipv4_address: 10.10.30.1
+      industrial:
+        ipv4_address: 10.10.40.1
+    healthcheck:
+      # Healthy only once the FORWARD default policy is DROP (rules applied).
+      test: ["CMD", "sh", "-c", "iptables -S FORWARD | grep -q '^-P FORWARD DROP'"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+  # User segment: simulated employee PC.
+  user-pc:
+    <<: *endpoint
+    command: sh -c "ip route replace default via 10.10.10.1 && exec python -m http.server 8080 -d /srv/www"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8080), 1)"]
+      interval: 2s
+      retries: 15
+    networks:
+      user:
+        ipv4_address: 10.10.10.10
+
+  # Server segment: simulated application/historian server.
+  app-server:
+    <<: *endpoint
+    command: sh -c "ip route replace default via 10.10.20.1 && exec python -m http.server 8080 -d /srv/www"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8080), 1)"]
+      interval: 2s
+      retries: 15
+    networks:
+      server:
+        ipv4_address: 10.10.20.10
+
+  # Management segment: simulated engineering workstation.
+  eng-ws:
+    <<: *endpoint
+    command: sh -c "ip route replace default via 10.10.30.1 && exec python -m http.server 8080 -d /srv/www"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8080), 1)"]
+      interval: 2s
+      retries: 15
+    networks:
+      management:
+        ipv4_address: 10.10.30.10
+
+  # Industrial segment: simulated Modbus/TCP PLC (see lab/modbus-sim).
+  plc:
+    build:
+      context: ../lab/modbus-sim
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    command: sh -c "ip route replace default via 10.10.40.1 && exec python /opt/modbus/modbus_server.py --port 502"
+    volumes:
+      # Read-only probe tools so tests can check the PLC's egress is blocked.
+      - ../lab/tools:/opt/tools:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 502), 1)"]
+      interval: 2s
+      retries: 15
+    networks:
+      industrial:
+        ipv4_address: 10.10.40.10
+
+networks:
+  # NOTE: not `internal: true`. Docker's internal-network isolation drops any IP packet leaving an
+  # internal bridge toward another subnet, which blocks traffic routed through the segment router
+  # (confirmed in Docker Desktop: DOCKER-INTERNAL DROP counters). Isolation here comes from the
+  # router: every endpoint's default route points at its segment router, and the router only
+  # forwards the allow-listed flows in lab/router/rules.sh. No ports are published to the host.
+  # The explicit gateway (.254) keeps Docker's bridge address off .1, which belongs to the router.
+  user:
+    ipam:
+      config:
+        - subnet: 10.10.10.0/24
+          gateway: 10.10.10.254
+  server:
+    ipam:
+      config:
+        - subnet: 10.10.20.0/24
+          gateway: 10.10.20.254
+  management:
+    ipam:
+      config:
+        - subnet: 10.10.30.0/24
+          gateway: 10.10.30.254
+  industrial:
+    ipam:
+      config:
+        - subnet: 10.10.40.0/24
+          gateway: 10.10.40.254

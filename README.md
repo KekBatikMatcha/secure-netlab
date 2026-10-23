@@ -7,18 +7,37 @@ A fully containerised, reproducible lab on localhost. It covers config automatio
 ## Status
 
 - [x] Phase 0: bootstrap (tooling, CI, hygiene tests)
-- [ ] Phase 1: segmented Docker Compose lab
+- [x] Phase 1: segmented Docker Compose lab (see [docs/topology.md](docs/topology.md))
 - [ ] Phase 2: config backup and drift detection
 - [ ] Phase 3: monitoring and alerting
 - [ ] Phase 4: intrusion detection (Suricata)
 - [ ] Phase 5: threat model and polish
 
+## Quick start
+
+Requires Docker (Compose v2) and Python 3.11+.
+
+```bash
+make up           # build and start the lab on internal networks (no host ports)
+make integration  # segmentation + Modbus checks against the running lab
+make down         # stop the lab and remove its volumes
+make test         # lint + unit tests + integration tests
+```
+
+Windows without `make`: run the same commands directly from PowerShell:
+
+```powershell
+docker compose -f compose/docker-compose.yml up -d --build --wait
+.\.venv\Scripts\python.exe -m pytest -m "not integration"
+.\.venv\Scripts\python.exe -m pytest -m integration
+docker compose -f compose/docker-compose.yml down -v
+```
+
 ## Development
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install ruff pytest
-ruff check .
-pytest
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m pytest -m "not integration"
 ```
