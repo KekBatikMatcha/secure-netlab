@@ -11,4 +11,4 @@ COPY monitor /app/monitor
 
 ENV PYTHONUNBUFFERED=1
 EXPOSE 9101
-CMD ["python", "-m", "monitor.app", "--targets", "/app/monitor/targets.yaml", "--state", "/state/state.json"]
+CMD ["python", "-m", "monitor.app", "--targets", "/app/monitor/targets.yaml", "--state", "/state/state.json", "--eve", "/var/log/suricata/eve.json"]

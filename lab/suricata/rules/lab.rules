@@ -1,0 +1,28 @@
+# Lab detection rules (Suricata). SIDs 1000001-1000099 are reserved for this lab.
+#
+# What Suricata sees: Suricata runs in the router's network namespace in pcap mode on "any" with
+# the BPF filter "inbound". That gives one copy of each packet, on the interface where it arrived.
+# Traffic between segments is visible even when the router drops it, because the IDS sees packets
+# before the firewall decides. Traffic inside one segment is not visible (it never reaches the router).
+#
+# Addresses (see docs/topology.md):
+#   user 10.10.10.0/24, server 10.10.20.0/24, management 10.10.30.0/24, industrial 10.10.40.0/24
+#   allowed industrial sources: app-server 10.10.20.10 (historian), eng-ws 10.10.30.10 (engineering),
+#   monitor 10.10.30.20 (TCP probes)
+
+# SID 1000001: any connection attempt into the industrial segment from a host outside the allow list.
+# Rate-limited per source (one alert per 30 s) so one attempt gives one alert, not one per SYN.
+# The router drops these, but the attempt is still recorded.
+alert tcp ![10.10.20.10,10.10.30.10,10.10.30.20] any -> 10.10.40.0/24 any (msg:"LAB unexpected connection attempt into industrial segment"; flow:to_server; flags:S,12; threshold:type limit, track by_src, count 1, seconds 30; classtype:policy-violation; priority:1; sid:1000001; rev:1;)
+
+# SID 1000002: management protocols (SSH, Telnet) attempted from the user segment.
+alert tcp 10.10.10.0/24 any -> 10.10.0.0/16 [22,23] (msg:"LAB management protocol attempt from user segment"; flow:to_server; flags:S,12; threshold:type limit, track by_src, count 1, seconds 30; classtype:attempted-admin; priority:2; sid:1000002; rev:1;)
+
+# SID 1000003 and 1000004: Modbus/TCP write requests to the PLC. The MBAP header is 7 bytes, so the
+# function code is at offset 7. FC 0x06 = write single register, FC 0x10 = write multiple registers.
+alert tcp any any -> 10.10.40.10 502 (msg:"LAB Modbus write single register (FC06) to PLC"; flow:to_server,established; content:"|06|"; offset:7; depth:1; threshold:type limit, track by_src, count 1, seconds 5; classtype:attempted-admin; priority:1; sid:1000003; rev:1;)
+alert tcp any any -> 10.10.40.10 502 (msg:"LAB Modbus write multiple registers (FC16) to PLC"; flow:to_server,established; content:"|10|"; offset:7; depth:1; threshold:type limit, track by_src, count 1, seconds 5; classtype:attempted-admin; priority:1; sid:1000004; rev:1;)
+
+# SID 1000005: port-scan pattern. Many new TCP connection attempts (SYN, no ACK) from one source
+# within 10 seconds. Counts SYNs, not distinct ports, so retransmits can also match. "type both" alerts once per 10 s window after 20 SYNs, instead of once per SYN.
+alert tcp 10.10.0.0/16 any -> 10.10.0.0/16 any (msg:"LAB possible TCP port scan (many SYNs from one source)"; flags:S,12; threshold:type both, track by_src, count 20, seconds 10; classtype:attempted-recon; priority:2; sid:1000005; rev:1;)

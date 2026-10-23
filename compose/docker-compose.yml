@@ -93,6 +93,36 @@ services:
       industrial:
         ipv4_address: 10.10.40.10
 
+  # Intrusion detection. Shares the router's network namespace, so it sees traffic on all four
+  # segments as the router receives it. Pcap mode on "any" with the BPF filter "inbound" gives one
+  # copy of each packet (forwarded packets would otherwise be seen on both interfaces).
+  # NET_RAW is the only capability: without NET_ADMIN/SYS_NICE the image's entrypoint runs as root
+  # and does not chown the bind-mounted log directory. -k none turns off checksum validation, since
+  # packets captured before checksum offload can look invalid in a VM.
+  suricata:
+    image: jasonish/suricata:7.0.11
+    restart: unless-stopped
+    network_mode: "service:router"
+    depends_on:
+      router:
+        condition: service_healthy
+    cap_add:
+      - NET_RAW
+    command:
+      - -c
+      - /etc/suricata/suricata.yaml
+      - -S
+      - /etc/suricata/rules/lab.rules
+      - --pcap=any
+      - -l
+      - /var/log/suricata
+      - -k
+      - none
+      - inbound
+    volumes:
+      - ../lab/suricata/rules:/etc/suricata/rules:ro
+      - ../reports/suricata:/var/log/suricata
+
   # Uptime/latency monitor (management segment). Probes allowed flows through the router and
   # exports Prometheus metrics on :9101. Reads the backup state written by `python -m automation`.
   monitor:
@@ -102,9 +132,10 @@ services:
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
-    command: sh -c "ip route replace default via 10.10.30.1 && exec python -m monitor.app --targets /app/monitor/targets.yaml --state /state/state.json"
+    command: sh -c "ip route replace default via 10.10.30.1 && exec python -m monitor.app --targets /app/monitor/targets.yaml --state /state/state.json --eve /var/log/suricata/eve.json"
     volumes:
       - ../reports:/state:ro
+      - ../reports/suricata:/var/log/suricata:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9101/metrics', timeout=2)"]
       interval: 5s

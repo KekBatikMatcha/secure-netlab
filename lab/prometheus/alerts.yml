@@ -74,3 +74,32 @@ groups:
           severity: warning
         annotations:
           summary: "Backup scheduler has not written state for 15 minutes"
+
+  - name: intrusion-detection
+    rules:
+      - alert: IdsHighSeverityAlert
+        # Suricata priority 1 rules: unexpected connections into industrial, Modbus writes.
+        expr: sum by (sid, signature) (increase(lab_ids_alerts_total{severity="high"}[5m])) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "IDS high-severity alert: {{ $labels.signature }}"
+          description: "Suricata SID {{ $labels.sid }} fired in the last 5 minutes. Check the IDS panel in Grafana."
+
+      - alert: IdsMediumSeverityAlert
+        # Suricata priority 2 rules: management protocol attempts, port scans.
+        expr: sum by (sid, signature) (increase(lab_ids_alerts_total{severity="medium"}[5m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "IDS alert: {{ $labels.signature }}"
+          description: "Suricata SID {{ $labels.sid }} fired in the last 5 minutes."
+
+      - alert: IdsEveStale
+        # Suricata writes stats events every few seconds. If eve.json is old, the IDS is down or
+        # its capture has stopped.
+        expr: lab_ids_eve_age_seconds > 300
+        labels:
+          severity: warning
+        annotations:
+          summary: "Suricata has not written eve.json for 5 minutes"

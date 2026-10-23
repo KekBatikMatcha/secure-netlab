@@ -15,7 +15,7 @@ select = ["E", "W", "F", "I", "B", "UP"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # Lab modules live outside the package; make them importable in tests.
-pythonpath = [".", "lab/modbus-sim", "lab/tools"]
+pythonpath = [".", "lab/modbus-sim", "lab/tools", "scripts"]
 addopts = "-ra"
 markers = [
     "integration: needs the Docker lab running (make up); run with -m integration",

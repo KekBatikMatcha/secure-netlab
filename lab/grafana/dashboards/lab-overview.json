@@ -158,6 +158,40 @@
         "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
         "colorMode": "value", "graphMode": "none", "textMode": "value_and_name"
       }
+    },
+    {
+      "id": 10,
+      "type": "table",
+      "title": "IDS alerts (last 15 min)",
+      "gridPos": {"h": 9, "w": 24, "x": 0, "y": 29},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A",
+         "expr": "round(sum by (sid, signature, severity, src, dst) (increase(lab_ids_alerts_total[15m])) > 0)",
+         "format": "table", "instant": true, "datasource": {"type": "prometheus", "uid": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "transformations": [
+        {"id": "organize", "options": {
+          "excludeByName": {"Time": true},
+          "indexByName": {"severity": 0, "sid": 1, "signature": 2, "src": 3, "dst": 4, "Value": 5},
+          "renameByName": {"Value": "alerts"}
+        }}
+      ],
+      "options": {"showHeader": true}
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "IDS alerts over time (by SID)",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 38},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"refId": "A", "expr": "sum by (sid) (increase(lab_ids_alerts_total[5m]))",
+         "legendFormat": "SID {{sid}}", "datasource": {"type": "prometheus", "uid": "prometheus"}}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short", "min": 0}, "overrides": []},
+      "options": {"legend": {"displayMode": "list", "placement": "bottom"}}
     }
   ]
 }

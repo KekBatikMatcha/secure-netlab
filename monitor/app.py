@@ -53,13 +53,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Lab uptime/latency monitor (Prometheus)")
     parser.add_argument("--targets", type=Path, default=Path("monitor/targets.yaml"))
     parser.add_argument("--state", type=Path, default=Path("reports/state.json"))
+    parser.add_argument("--eve", type=Path, default=Path("reports/suricata/eve.json"))
     parser.add_argument("--port", type=int, default=9101)
     parser.add_argument("--interval", type=float, default=15.0)
     parser.add_argument("--timeout", type=float, default=2.0)
     args = parser.parse_args(argv)
 
     targets = load_targets(args.targets)
-    registry, metrics = build_registry(args.state)
+    registry, metrics = build_registry(args.state, args.eve)
     start_http_server(args.port, registry=registry)
     print(f"monitor: {len(targets)} targets, metrics on :{args.port}", flush=True)
     probe_loop(

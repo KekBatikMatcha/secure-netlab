@@ -15,7 +15,17 @@ pytestmark = pytest.mark.integration
 
 ROOT = Path(__file__).resolve().parents[2]
 COMPOSE = ROOT / "compose" / "docker-compose.yml"
-SERVICES = ["router", "user-pc", "app-server", "eng-ws", "plc", "monitor", "prometheus", "grafana"]
+SERVICES = [
+    "router",
+    "user-pc",
+    "app-server",
+    "eng-ws",
+    "plc",
+    "monitor",
+    "prometheus",
+    "grafana",
+    "suricata",
+]
 
 # (source container, destination IP, port) that the segment rules must allow.
 ALLOWED = [

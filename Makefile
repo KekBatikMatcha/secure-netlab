@@ -9,7 +9,7 @@
 COMPOSE := docker compose -f compose/docker-compose.yml
 PY ?= python
 
-.PHONY: up down lint unit integration test check
+.PHONY: up down lint unit integration test check demo-traffic
 
 # Fetch every device, store changed config versions, and report drift (exit 1 on drift).
 check:
@@ -31,3 +31,8 @@ integration: up
 	$(PY) -m pytest -m integration
 
 test: lint unit integration
+
+# Harmless detection-test traffic from inside the lab (see docs/ids.md). Alerts show in Grafana.
+demo-traffic:
+	$(PY) scripts/demo_traffic.py all
+

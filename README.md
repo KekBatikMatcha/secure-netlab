@@ -10,7 +10,7 @@ A fully containerised, reproducible lab on localhost. It covers config automatio
 - [x] Phase 1: segmented Docker Compose lab (see [docs/topology.md](docs/topology.md))
 - [x] Phase 2: config backup and drift detection (see [docs/config-drift.md](docs/config-drift.md))
 - [ ] Phase 3: monitoring and alerting
-- [ ] Phase 4: intrusion detection (Suricata)
+- [x] Phase 4: intrusion detection, Suricata rules and eve.json alerts in Grafana (see [docs/ids.md](docs/ids.md))
 - [ ] Phase 5: threat model and polish
 
 ## Quick start
@@ -23,6 +23,7 @@ make integration  # segmentation + Modbus checks against the running lab
 make down         # stop the lab and remove its volumes
 make test         # lint + unit tests + integration tests
 make check        # back up all devices, store changes, report drift (exit 1 on drift)
+make demo-traffic # harmless detection-test traffic; IDS alerts appear in Grafana (docs/ids.md)
 ```
 
 Config backup and drift: `python -m automation baseline router` accepts the current config as the

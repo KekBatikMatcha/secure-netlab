@@ -78,7 +78,7 @@ def _exposition(registry: Any) -> str:
 
 
 def test_probe_metrics_record_up_latency_and_failures() -> None:
-    registry, metrics = build_registry(Path("does-not-exist.json"))
+    registry, metrics = build_registry(Path("does-not-exist.json"), Path("no-eve.json"))
     metrics.record("plc", ProbeResult(ok=True, seconds=0.004))
     metrics.record("app-server", ProbeResult(ok=False, seconds=2.0, error="timed out"))
     text = _exposition(registry)
@@ -91,7 +91,7 @@ def test_probe_metrics_record_up_latency_and_failures() -> None:
 
 
 def test_missing_state_file_reports_infinite_age_and_no_backup_series(tmp_path: Path) -> None:
-    registry, _ = build_registry(tmp_path / "state.json")
+    registry, _ = build_registry(tmp_path / "state.json", tmp_path / "eve.json")
     text = _exposition(registry)
     assert "lab_state_age_seconds +Inf" in text
     assert "lab_drift_findings{" not in text
@@ -113,7 +113,7 @@ def test_state_file_is_exported_with_cumulative_counters(tmp_path: Path) -> None
         },
     }
     write_state(state_path, state)
-    registry, _ = build_registry(state_path)
+    registry, _ = build_registry(state_path, FIXTURES / "eve_sample.json")
     # Freeze "now" by using the file's own timestamp: age should be the difference only.
     text = _exposition(registry)
     assert 'lab_drift_events_total{device="router"} 2.0' in text
@@ -139,7 +139,7 @@ def test_state_age_grows_with_the_clock(tmp_path: Path) -> None:
 
 
 def test_probe_loop_probes_every_target_each_cycle_and_sleeps_between() -> None:
-    registry, metrics = build_registry(Path("missing.json"))
+    registry, metrics = build_registry(Path("missing.json"), Path("no-eve.json"))
     calls: list[str] = []
     sleeps: list[float] = []
 
@@ -185,7 +185,7 @@ def test_exported_families_match_the_declared_list(tmp_path: Path) -> None:
         CycleResult("plc", "error", error="boom"),
     ]
     write_state(state_path, apply_results(None, results, now=1_000.0))
-    registry, metrics = build_registry(state_path)
+    registry, metrics = build_registry(state_path, FIXTURES / "eve_sample.json")
     metrics.record("plc", ProbeResult(ok=True, seconds=0.002))
     metrics.record("plc", ProbeResult(ok=False, seconds=1.0, error="x"))
 

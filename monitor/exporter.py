@@ -15,6 +15,7 @@ from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram
 from prometheus_client.core import CounterMetricFamily, GaugeMetricFamily, Metric
 
 from automation.state import SEVERITIES, read_state
+from monitor.ids import count_alerts
 from monitor.probe import ProbeResult
 
 # Base names of every family this exporter produces. Dashboards and alert rules must only use these
@@ -30,6 +31,8 @@ METRIC_FAMILIES: tuple[str, ...] = (
     "lab_backup_errors",
     "lab_backup_last_success_timestamp_seconds",
     "lab_state_age_seconds",
+    "lab_ids_alerts",
+    "lab_ids_eve_age_seconds",
 )
 
 # Covers LAN handshakes (about 1 ms) up to slow or saturated links (2.5 s).
@@ -118,8 +121,38 @@ class StateCollector:
         yield last_ok
 
 
-def build_registry(state_path: Path) -> tuple[CollectorRegistry, ProbeMetrics]:
+class IdsCollector:
+    """Counts Suricata alerts from eve.json on every scrape."""
+
+    def __init__(self, eve_path: Path, clock: Callable[[], float] = time.time) -> None:
+        self.eve_path = eve_path
+        self.clock = clock
+
+    def collect(self) -> Iterator[Metric]:
+        try:
+            age = max(0.0, self.clock() - self.eve_path.stat().st_mtime)
+        except OSError:
+            age = float("inf")
+        yield GaugeMetricFamily(
+            "lab_ids_eve_age_seconds",
+            "Seconds since Suricata last wrote eve.json (+Inf if missing)",
+            value=age,
+        )
+        alerts = CounterMetricFamily(
+            "lab_ids_alerts",
+            "Suricata alerts by signature, severity, source and destination",
+            labels=["signature", "sid", "severity", "src", "dst"],
+        )
+        counts = count_alerts(self.eve_path)
+        for alert in sorted(counts, key=lambda a: (a.sid, a.src, a.dst)):
+            labels = [alert.signature, alert.sid, alert.severity, alert.src, alert.dst]
+            alerts.add_metric(labels, counts[alert])
+        yield alerts
+
+
+def build_registry(state_path: Path, eve_path: Path) -> tuple[CollectorRegistry, ProbeMetrics]:
     registry = CollectorRegistry()
     metrics = ProbeMetrics(registry)
     registry.register(StateCollector(state_path))
+    registry.register(IdsCollector(eve_path))
     return registry, metrics
