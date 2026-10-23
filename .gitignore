@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.env
+# Generated lab output (backups, reports, logs)
+backups/
+reports/
+logs/
