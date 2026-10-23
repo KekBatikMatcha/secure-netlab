@@ -5,7 +5,7 @@ Two checks are implemented, matching the lab devices:
   * listeners (netstat/ss output): which TCP ports are open
 
 Severity:
-  high   - a new allow rule or listener on a management port, or a policy change
+  high   - a new allow rule or listener on a sensitive port (admin or Modbus), or a policy change
   medium - any other new/changed rule or listener
   low    - something stopped listening or was removed from a listener list
 """
@@ -17,8 +17,10 @@ from dataclasses import dataclass, field
 
 from automation.bundle import ConfigBundle
 
-# Remote-administration ports. Opening one of these is always high severity.
-MANAGEMENT_PORTS: frozenset[int] = frozenset({22, 23, 80, 443, 830})
+# Ports where opening access is always high severity: remote administration (SSH, Telnet, web admin,
+# NETCONF) and industrial control (Modbus/TCP on 502). An allow rule for the PLC from an unexpected
+# segment is as serious as an admin port.
+SENSITIVE_PORTS: frozenset[int] = frozenset({22, 23, 80, 443, 502, 830})
 
 _DPORT = re.compile(r"--dport (\d+)")
 _PORT = re.compile(r":(\d+)\b")  # first ":port" on a listener line, e.g. 0.0.0.0:22
@@ -99,7 +101,7 @@ def _rule_key(rule: str) -> tuple[str, str, str, str, str]:
 def _rule_severity(rule: str) -> str:
     if " -j ACCEPT" in rule:
         match = _DPORT.search(rule)
-        if match and int(match.group(1)) in MANAGEMENT_PORTS:
+        if match and int(match.group(1)) in SENSITIVE_PORTS:
             return "high"
     return "medium"
 
@@ -159,9 +161,9 @@ def _compare_listeners(base_text: str, cur_text: str) -> list[Finding]:
     after = _listening_ports(cur_text)
     findings: list[Finding] = []
     for port in sorted(after - before):
-        if port in MANAGEMENT_PORTS:
+        if port in SENSITIVE_PORTS:
             findings.append(
-                Finding("listener-added", "high", f"tcp/{port} now listening (management port)")
+                Finding("listener-added", "high", f"tcp/{port} now listening (sensitive port)")
             )
         else:
             findings.append(Finding("listener-added", "medium", f"tcp/{port} now listening"))

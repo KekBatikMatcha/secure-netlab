@@ -78,7 +78,7 @@ def test_counter_and_timestamp_changes_are_not_drift() -> None:
 def test_drift_case_finds_changed_rule_new_management_rule_and_new_listener() -> None:
     report = compare("router", load("router_baseline.cfg"), load("router_drift.cfg"))
     assert summary(report) == [
-        ("firewall-rule-added", "high"),  # new allow on management port 22
+        ("firewall-rule-added", "high"),  # new allow on sensitive port 22
         ("firewall-rule-changed", "medium"),  # 8080 -> 8443 on the user->server rule
         ("listener-added", "high"),  # telnet (23) now listening
     ]
@@ -114,6 +114,17 @@ def test_removed_rule_without_replacement_is_medium() -> None:
     )
     report = compare("router", base, with_firewall(base, text))
     assert summary(report) == [("firewall-rule-removed", "medium")]
+
+
+def test_new_allow_rule_to_modbus_port_is_high() -> None:
+    # An allow rule to the PLC from a segment that should not reach it is high severity.
+    base = load("router_baseline.cfg")
+    text = base.sections["firewall"].replace(
+        "COMMIT",
+        "-A FORWARD -s 10.10.10.0/24 -d 10.10.40.0/24 -p tcp -m tcp --dport 502 -j ACCEPT\nCOMMIT",
+    )
+    report = compare("router", base, with_firewall(base, text))
+    assert summary(report) == [("firewall-rule-added", "high")]
 
 
 def test_new_listener_on_non_management_port_is_medium() -> None:

@@ -43,7 +43,7 @@ Modbus PLC. Counters in the state file are cumulative and survive restarts.
 | DeviceDown | critical | a device fails TCP probes for 1 minute |
 | ProbeFailuresBurst | warning | more than 3 failed probes in 10 minutes |
 | HighProbeLatencyP50 | warning | median connect time above 50 ms for 5 minutes |
-| ConfigDriftHigh | critical | a high-severity drift finding (management port or policy) |
+| ConfigDriftHigh | critical | a high-severity drift finding (sensitive port or policy) |
 | ConfigDriftLow | warning | medium or low drift findings |
 | BackupStale | warning | no successful backup for 15 minutes |
 | BackupErrors | warning | any backup failure in 30 minutes |

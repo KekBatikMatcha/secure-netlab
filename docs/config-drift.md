@@ -48,14 +48,15 @@ random port on each start, so keeping it would report drift on every restart.
 | Kind                     | Severity | Meaning                                                        |
 |--------------------------|----------|----------------------------------------------------------------|
 | `policy-changed`         | high     | a chain's default policy changed (e.g. FORWARD DROP to ACCEPT) |
-| `firewall-rule-added`    | high/medium | new rule; high if it ACCEPTs a management port               |
+| `firewall-rule-added`    | high/medium | new rule; high if it ACCEPTs a sensitive port                |
 | `firewall-rule-changed`  | high/medium | one removed + one added rule with the same src/dst/proto/action |
 | `firewall-rule-removed`  | medium   | rule removed with no matching replacement                      |
-| `listener-added`         | high/medium | new listening port; high on a management port                |
+| `listener-added`         | high/medium | new listening port; high on a sensitive port                 |
 | `listener-removed`       | low      | a listening port stopped                                       |
 | `section-missing`        | medium   | a section in the baseline was not collected                    |
 
-Management ports are 22, 23, 80, 443 and 830 (`automation/drift.py`).
+Sensitive ports are 22, 23, 80, 443, 502 (Modbus/TCP) and 830 (`automation/drift.py`). Modbus is
+included because an allow rule to the PLC from an unexpected segment is as serious as an admin port.
 
 Limitations:
 - Rule order is not compared. Reordering iptables rules is not reported.
